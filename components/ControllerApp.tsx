@@ -15,14 +15,15 @@ export default function ControllerApp() {
     // The tap is a user gesture, so fullscreen/orientation lock is allowed here.
     void enterLandscapeFullscreen();
     // Pick the colour on the client at selection time (not during SSR) to avoid hydration mismatch.
-    if (l === "joycon") setColor(randomJoyConColor());
+    if (l !== "pro") setColor(randomJoyConColor());
     setLayout(l);
   };
 
   if (layout === "pro") return <ProController onBack={() => setLayout(null)} />;
-  if (layout === "joycon" && color) {
+  if (layout && color) {
     return (
       <JoyConController
+        side={layout === "joycon-left" ? "left" : "right"}
         color={color}
         onShuffle={() => setColor(randomJoyConColor(color.hex))}
         onBack={() => setLayout(null)}

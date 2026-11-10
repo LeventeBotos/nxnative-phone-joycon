@@ -39,7 +39,7 @@ npm run bridge                 # real key presses
 npm run bridge -- --dry-run    # just print keys (no permissions needed)
 ```
 
-Scan the QR code with your phone (same Wi-Fi) and rotate to landscape. Pick a layout on the first screen: **Pro Controller** (dark, one-piece) or **Joy-Con** (a handheld pair in a random Joy-Con colour; tap *New colour* to re-roll, *Change layout* to go back). The status dot turns green when the bridge is connected. For a production build: `npm run build && npm start`.
+Scan the QR code with your phone (same Wi-Fi) and rotate to landscape. Pick a layout on the first screen: **Pro Controller** (dark, one-piece), **Left Joy-Con** (stick, D-pad, L/ZL, minus) or **Right Joy-Con** (ABXY, stick, R/ZR, plus). Each Joy-Con fills the whole phone screen in a random Joy-Con colour; tap *New colour* to re-roll or *Change layout* to go back. The status dot turns green when the bridge is connected. For a production build: `npm run build && npm start`.
 
 ### Permissions
 - **Accessibility:** System Settings → Privacy & Security → Accessibility → enable your terminal app, then restart it. Without this, key events are silently dropped.
