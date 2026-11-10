@@ -1,0 +1,21 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e30]
+  - main [ref=e59]:
+    - heading "Choose your controller" [level=1] [ref=e60]
+    - generic [ref=e61]:
+      - text: Player
+      - button "Auto" [ref=e62]
+      - button "P1" [ref=e63]
+      - button "P2" [ref=e64]
+      - button "P3" [ref=e65]
+      - button "P4" [ref=e66]
+    - generic [ref=e67]:
+      - button "Pro Controller Full one-piece layout" [ref=e68]:
+        - generic [ref=e75]: Pro Controller
+        - generic [ref=e76]: Full one-piece layout
+      - button "Left Joy-Con Stick, D-pad, L/ZL, minus" [ref=e77]:
+        - generic [ref=e80]: Left Joy-Con
+        - generic [ref=e81]: Stick, D-pad, L/ZL, minus
+      - button "Right Joy-Con ABXY, stick, R/ZR, plus" [ref=e82]:
+        - generic [ref=e85]: Right Joy-Con
+        - generic [ref=e86]: ABXY, stick, R/ZR, plus
