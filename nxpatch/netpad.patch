@@ -1,0 +1,59 @@
+--- a/dm/host/Makefile	2026-11-08 18:07:46
++++ b/dm/host/Makefile	2026-11-10 10:42:00
+@@ -20,7 +20,7 @@
+ include ../mac/min_os.mk
+ CFLAGS=-O1 -g -Wall -Wno-unused-function -mmacosx-version-min=$(MACOS_MIN)
+ # Service-layer takeover hle_*.c files are included by wildcard: adding a file does not touch this line (avoids merge conflicts)
+-SRC=main.c loader.c hle.c crash.c probe.c thread.c save_sync.c memstat.m haptics_apple.m $(sort $(wildcard hle_*.c)) front_mac.m controllers_mac.m web_apple.m entry.S
++SRC=main.c loader.c hle.c crash.c probe.c thread.c save_sync.c memstat.m haptics_apple.m $(sort $(wildcard hle_*.c)) front_mac.m controllers_mac.m netpad_mac.m web_apple.m entry.S
+ # NVN null device + nn::vi + the Vulkan layer (dm/gfx/)
+ # Sources under dm/gfx, dm/gfx/nvn, dm/gfx/tex, dm/gfx/vk and dm/gfx/gl are included by wildcard (tests/ and metal/ do not go into the host): adding a file does not touch this line
+ GFX=$(sort $(wildcard ../gfx/*.c ../gfx/nvn/*.c ../gfx/nvn/*.m ../gfx/nvn/*.S ../gfx/tex/*.c ../gfx/tex/*.m ../gfx/vk/*.m ../gfx/gl/*.m))
+--- a/dm/host/controllers_mac.m	2026-11-08 18:07:46
++++ b/dm/host/controllers_mac.m	2026-11-10 10:42:06
+@@ -50,6 +50,7 @@
+ static pad_map g_button_map;
+ static BOOL g_map_fixed, g_maps_loaded, g_maps_saved;
+ static pad_slots g_slots;
++static uint32_t g_net_players;   // players held by phone pads (netpad_mac.m)
+ static int g_merge, g_press_to_join, g_focus=1, g_app_focus=1, g_window_focus=1, g_modal, g_quit_prompt, g_applet;
+ static __weak DMController *g_motion_source;
+ static __weak DMController *g_merge_haptics_source;
+@@ -380,11 +381,17 @@
+     controller_attach_motion(d);
+     controller_pro_changed();
+     if (g_merge) controller_merge_haptics(); else controller_route_haptics(d, d->slot);
+-    dm_pad_players(g_merge ? 1 : pad_slot_mask(&g_slots));
++    dm_pad_players((g_merge ? 1 : pad_slot_mask(&g_slots)) | g_net_players);
+     fprintf(stderr, "controller '%s': player %d\n", d.name.UTF8String, g_merge ? 1 : d->slot + 1);
+     controller_panel_refresh();
+     front_cp_poll();   // a controller joined while the controller applet's prompt is up
+ }
++// Phone pads (netpad_mac.m): players held by network pads count as controllers too
++void controllers_net_players(uint32_t mask) {
++    g_net_players = mask;
++    dm_pad_players((g_merge ? (pad_slot_mask(&g_slots) ? 1 : 0) : pad_slot_mask(&g_slots)) | g_net_players);
++    front_cp_poll();   // a phone joined or left while the controller applet's prompt is up
++}
+ static void controller_disconnect(DMController *d) {
+     if (d->slot < 0) return;
+     controller_reset_motion(d);
+@@ -394,7 +401,7 @@
+     d->input = (steam_state){0}; d->quit_buttons=0;
+     if (g_merge) controller_merge_haptics(); else dm_haptics_apple_controller(slot, nil);
+     if (g_merge) controller_publish(d); else dm_pad_set_player(slot, 0, 0, 0, 0, 0);
+-    dm_pad_players(g_merge ? (pad_slot_mask(&g_slots) ? 1 : 0) : pad_slot_mask(&g_slots));
++    dm_pad_players((g_merge ? (pad_slot_mask(&g_slots) ? 1 : 0) : pad_slot_mask(&g_slots)) | g_net_players);
+     controller_touches();
+     controller_panel_refresh();
+     front_cp_poll();   // one controller fewer to wait for, or one player fewer, while the controller applet's prompt is up
+--- a/dm/host/front_mac.m	2026-11-08 18:07:46
++++ b/dm/host/front_mac.m	2026-11-10 10:42:06
+@@ -1334,6 +1334,7 @@
+         if (keys) key_map_parse(&g_keys, keys.UTF8String);
+         hq_start();
+         front_controllers_start();
++        { extern void netpad_start(void); netpad_start(); }   // phone pads (netpad_mac.m)
+         hq_log_setting();
+         [NSNotificationCenter.defaultCenter addObserverForName:GCControllerDidConnectNotification object:nil queue:NSOperationQueue.mainQueue
+                                                    usingBlock:^(NSNotification *n) { (void)n; hq_log_setting(); }];

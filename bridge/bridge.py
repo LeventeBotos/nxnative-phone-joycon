@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Phone Joy-Con bridge: a Socket.IO client that turns phone input into either
 
+  netpad    UDP to a patched NX2Apple host (nxpatch/): one real player per phone, no macOS security change, or
   hid       one virtual HID gamepad per player slot (needs the vpad helper + macOS entitlement), or
   keyboard  macOS key presses via Quartz (everything is player 1) using bridge/keymap.json.
 
---output auto (default) tries hid and falls back to keyboard."""
+--output auto (default): netpad if a game was patched with nxpatch/install.sh, else hid, else keyboard."""
 import argparse
 import atexit
 import json
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -17,9 +19,11 @@ from pathlib import Path
 
 import socketio
 
-from hid_report import PadState, by_slot, report_fields
+from hid_report import PadState, by_slot, report_fields, switch_fields
 
 HERE = Path(__file__).resolve().parent
+NETPAD_PORT = 47600
+NETPAD_MARKER = HERE.parent / "nxpatch" / "installed.txt"   # written by nxpatch/install.sh
 
 # macOS virtual keycodes (kVK_ANSI_* / kVK_*), US layout.
 KEYCODES = {
@@ -93,6 +97,60 @@ class KeyboardOutput:
 
     def close(self) -> None:
         self.apply({})
+
+
+# ---------------------------------------------------------------- netpad output
+class NetPadOutput:
+    """One player per slot, sent as UDP datagrams to the patched NX2Apple host (nxpatch/netpad_mac.m)."""
+
+    def __init__(self, port: int, dry_run: bool):
+        self.addr = ("127.0.0.1", port)
+        self.dry_run = dry_run
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.fields: dict[int, tuple] = {}
+        self.lock = threading.Lock()
+        self.stop = threading.Event()
+        # the host releases a player that is silent for 2 s, so a crashed bridge cannot leave a button held
+        threading.Thread(target=self._keepalive, daemon=True).start()
+        print(f"network pads: sending to the patched NX2Apple host on 127.0.0.1:{port}")
+
+    def _send(self, msg: str) -> None:
+        if self.dry_run:
+            print(f"  udp {msg}")
+            return
+        try:
+            self.sock.sendto(msg.encode(), self.addr)
+        except OSError:
+            pass  # no host listening (yet): UDP, so nothing to do
+
+    def apply(self, pads: dict) -> None:
+        groups = by_slot(pads)
+        with self.lock:
+            for slot, members in groups.items():
+                f = switch_fields(members)
+                if slot not in self.fields:
+                    print(f"  player {slot} joined")
+                if self.fields.get(slot) != f:
+                    self.fields[slot] = f
+                    self._send(f"P {slot} " + " ".join(map(str, f)))
+            for slot in set(self.fields) - set(groups):
+                del self.fields[slot]
+                print(f"  player {slot} left")
+                self._send(f"L {slot}")
+                self._send(f"L {slot}")  # twice: UDP may drop one
+
+    def _keepalive(self) -> None:
+        while not self.stop.wait(1.0):
+            with self.lock:
+                for slot, f in self.fields.items():
+                    self._send(f"P {slot} " + " ".join(map(str, f)))
+
+    def close(self) -> None:
+        self.stop.set()
+        with self.lock:
+            for slot in list(self.fields):
+                self._send(f"L {slot}")
+            self.fields.clear()
 
 
 # ---------------------------------------------------------------- hid output
@@ -193,14 +251,18 @@ def check_accessibility() -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--server", default="http://localhost:3000")
-    ap.add_argument("--output", choices=["auto", "hid", "keyboard"], default="auto")
+    ap.add_argument("--output", choices=["auto", "netpad", "hid", "keyboard"], default="auto")
+    ap.add_argument("--netpad-port", type=int, default=NETPAD_PORT)
     ap.add_argument("--keymap", default=str(HERE / "keymap.json"))
     ap.add_argument("--vpad", help="path to the vpad helper (default: bridge/vpad/vpad-entitled, then vpad)")
     ap.add_argument("--dry-run", action="store_true", help="print what would be sent instead of acting")
     args = ap.parse_args()
 
     out = None
-    if args.output in ("auto", "hid"):
+    netpad_ready = NETPAD_MARKER.exists() and NETPAD_MARKER.read_text().strip()
+    if args.output == "netpad" or (args.output == "auto" and netpad_ready):
+        out = NetPadOutput(args.netpad_port, args.dry_run)
+    elif args.output in ("auto", "hid"):
         cands = [Path(args.vpad)] if args.vpad else [HERE / "vpad" / "vpad-entitled", HERE / "vpad" / "vpad"]
         out = HidOutput.start(cands, args.dry_run)
         if out is None and args.output == "hid":

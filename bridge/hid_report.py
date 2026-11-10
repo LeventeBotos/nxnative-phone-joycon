@@ -61,3 +61,28 @@ def by_slot(pads):
     for p in pads.values():
         slots.setdefault(p.slot, []).append(p)
     return slots
+
+
+# --- NX2Apple host input (nxpatch/netpad_mac.m): DM_BTN_* bits and sticks in -32767..32767, +y up ---
+DM_BITS = {
+    "A": 0, "B": 1, "X": 2, "Y": 3, "LS": 4, "RS": 5, "L": 6, "R": 7, "ZL": 8, "ZR": 9,
+    "PLUS": 10, "MINUS": 11, "LEFT": 12, "UP": 13, "RIGHT": 14, "DOWN": 15,
+}
+STICK_MAX = 32767
+
+
+def stick_int(v: float) -> int:
+    return int(round(max(-1.0, min(1.0, float(v))) * STICK_MAX))
+
+
+def switch_fields(pads):
+    """Merge the phones of ONE slot into (buttons, lx, ly, rx, ry) as the NX2Apple host reads them."""
+    pads = list(pads)
+    held = set().union(*(p.buttons for p in pads)) if pads else set()
+    mask = 0
+    for name, bit in DM_BITS.items():
+        if name in held:
+            mask |= 1 << bit
+    lx, ly = _strongest(p.sticks["L"] for p in pads)
+    rx, ry = _strongest(p.sticks["R"] for p in pads)
+    return mask, stick_int(lx), stick_int(ly), stick_int(rx), stick_int(ry)

@@ -54,3 +54,9 @@ __pycache__/
 # virtual gamepad helper builds
 bridge/vpad/vpad
 bridge/vpad/vpad-entitled
+
+# NX2Apple host patch build output
+nxpatch/work/
+nxpatch/out/
+nxpatch/installed.txt
+nxpatch/backup/

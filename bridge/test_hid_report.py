@@ -3,7 +3,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from hid_report import HAT_CENTER, PadState, axis, by_slot, report_fields  # noqa: E402
+from hid_report import HAT_CENTER, PadState, axis, by_slot, report_fields, switch_fields  # noqa: E402
 
 CENTER = axis(0)
 
@@ -58,6 +58,32 @@ def test_same_button_on_two_phones_releases_only_with_both():
 def test_by_slot_groups():
     g = by_slot({"x": PadState(1), "y": PadState(2), "z": PadState(1)})
     assert sorted(g) == [1, 2] and len(g[1]) == 2
+
+
+def test_switch_fields_use_dm_btn_bits():
+    # DM_BTN_*: A0 B1 X2 Y3 LS4 RS5 L6 R7 ZL8 ZR9 PLUS10 MINUS11 LEFT12 UP13 RIGHT14 DOWN15
+    expect = {"A": 0, "B": 1, "X": 2, "Y": 3, "LS": 4, "RS": 5, "L": 6, "R": 7, "ZL": 8, "ZR": 9,
+              "PLUS": 10, "MINUS": 11, "LEFT": 12, "UP": 13, "RIGHT": 14, "DOWN": 15}
+    for name, bit in expect.items():
+        assert switch_fields([PadState(1, {name})])[0] == 1 << bit, name
+
+
+def test_switch_sticks_keep_up_positive_and_clamp():
+    p = PadState(1)
+    p.sticks["L"] = (-1.0, 1.0)
+    p.sticks["R"] = (0.5, -2.0)
+    assert switch_fields([p])[1:] == (-32767, 32767, 16384, -32767)
+    assert switch_fields([])[1:] == (0, 0, 0, 0)
+
+
+def test_switch_pair_merges_and_releases_per_phone():
+    left, right = PadState(2, {"UP", "ZL"}), PadState(2, {"A"})
+    right.sticks["R"] = (0.0, 1.0)
+    mask, lx, ly, rx, ry = switch_fields([left, right])
+    assert mask == (1 << 13) | (1 << 8) | 1 and ry == 32767
+    right.buttons.clear()
+    right.sticks["R"] = (0.0, 0.0)
+    assert switch_fields([left, right]) == ((1 << 13) | (1 << 8), 0, 0, 0, 0)
 
 
 if __name__ == "__main__":

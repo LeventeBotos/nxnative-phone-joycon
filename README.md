@@ -46,7 +46,18 @@ Scan the QR code with your phone (same Wi-Fi) and rotate to landscape. Pick a la
 - **Firewall:** allow incoming connections for Node if macOS asks.
 - iOS tip: Share → *Add to Home Screen* gives a full-screen controller with no browser bars.
 
-## Virtual gamepad mode (4 players)
+## Real players for each phone (NX2Apple host patch) - recommended
+
+macOS won't let apps create virtual gamepads, so instead this project patches NX2Apple's own host (it compiles on your Mac) to accept phone pads as players. No security changes, no entitlement. See `nxpatch/README.md`.
+
+```bash
+nxpatch/install.sh "$HOME/switch/Mario Kart 8 Deluxe.app"   # once per game; quit the game first. Undo: nxpatch/uninstall.sh
+npm run dev      # terminal 1
+npm run bridge   # terminal 2 - uses the patched host automatically
+```
+Start the game, pick **P1-P4** (or Auto) on each phone, and each phone is its own player: Mario Kart's "players wanted" count rises as phones join, and sticks are analog. Two phones on the same player act as one controller (Left + Right Joy-Con). The game's log (`~/switch/log/<title id>.log`) says `netpad: phone player N joined`.
+
+## Alternative: virtual HID gamepads (needs macOS entitlement)
 
 With this mode every phone is its **own gamepad** to macOS, so NX2Apple gives each one its own player (up to 4) and multiplayer prompts like Mario Kart's "3 players wanted" can be satisfied. Pick **P1-P4** (or Auto) on the phone's first screen; two phones on the same player act as one controller (one Left + one Right Joy-Con).
 
