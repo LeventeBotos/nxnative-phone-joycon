@@ -2,7 +2,7 @@
 
 # Phone Joy-Con
 
-Phone browser = virtual Switch controller for native Mac games. Phone → Socket.IO → `server.ts` → `bridge/bridge.py` → macOS keyboard events (Quartz).
+Phone browser = virtual Switch controller for native Mac games. Phone → Socket.IO → `server.ts` (assigns player slots 1-4) → `bridge/bridge.py` → either virtual HID gamepads (`bridge/vpad`, one per slot) or macOS keyboard events (Quartz, all = player 1).
 
 ## Commands
 - `npm run dev` - custom Next server + Socket.IO on 0.0.0.0:3000; prints LAN URL + QR
@@ -23,3 +23,8 @@ Phone browser = virtual Switch controller for native Mac games. Phone → Socket
 
 ## NX2Apple keymap
 `bridge/keymap.json` mirrors NX2Apple defaults (`~/Library/Application Support/NX2Apple/engine/*/dm/host/input_map.h`). Right stick = `shift+<arrow>`: the bridge sets the Shift flag on the arrow event (NX2Apple reads `NSEvent.modifierFlags`). If a user sets `DM_KEYMAP` in NX2Apple, mirror it in keymap.json.
+
+## Virtual gamepads
+- `bridge/vpad/vpad.c`: IOHIDUserDevice helper driven by stdin lines (`probe`, `join N`, `leave N`, `rep N buttons hat lx ly rx ry`); build with `npm run build:vpad` (also makes `vpad-entitled`, ad-hoc signed; macOS kills it unless AMFI is relaxed). `bridge/hid_report.py` is the pure state-merge/report logic (`npm run test:bridge`); button numbers follow NX2Apple's generic HID default map.
+- Creating the device needs `com.apple.developer.hid.virtual.device`; see README "Virtual gamepad mode". Output `auto` falls back to keyboard if it cannot.
+- Server events to the bridge carry `slot` + `padId`; `padJoined`/`padLeft` replace the old `releaseAll`, so one phone leaving never releases another phone's input.

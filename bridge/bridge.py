@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
-"""Phone Joy-Con bridge: Socket.IO client that turns controller events into
-macOS keyboard events (Quartz CGEventPost) using bridge/keymap.json."""
+"""Phone Joy-Con bridge: a Socket.IO client that turns phone input into either
+
+  hid       one virtual HID gamepad per player slot (needs the vpad helper + macOS entitlement), or
+  keyboard  macOS key presses via Quartz (everything is player 1) using bridge/keymap.json.
+
+--output auto (default) tries hid and falls back to keyboard."""
 import argparse
 import atexit
 import json
 import signal
+import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 import socketio
+
+from hid_report import PadState, by_slot, report_fields
+
+HERE = Path(__file__).resolve().parent
 
 # macOS virtual keycodes (kVK_ANSI_* / kVK_*), US layout.
 KEYCODES = {
@@ -22,8 +32,6 @@ KEYCODES = {
     "command": 55, "shift": 56, "option": 58, "control": 59,
     "left": 123, "right": 124, "down": 125, "up": 126,
 }
-
-
 MODIFIER_FLAGS = {"shift": 1, "control": 2, "option": 4, "command": 8}
 _FLAG_NAMES = {"shift": "kCGEventFlagMaskShift", "control": "kCGEventFlagMaskControl",
                "option": "kCGEventFlagMaskAlternate", "command": "kCGEventFlagMaskCommand"}
@@ -33,17 +41,24 @@ def mods_to_flag_names(mods):
     return [_FLAG_NAMES[m] for m in mods]
 
 
-class KeyOutput:
-    def __init__(self, dry_run: bool):
+# ---------------------------------------------------------------- keyboard output
+class KeyboardOutput:
+    """Presses keys for the union of every phone's input (all phones are player 1)."""
+
+    def __init__(self, keymap: dict, dry_run: bool):
         self.dry_run = dry_run
+        self.buttons = keymap["buttons"]
+        self.sticks = keymap["sticks"]
+        self.deadzone = float(keymap.get("deadzone", 0.35))
         self.held: set[str] = set()
         if not dry_run:
             import Quartz  # noqa: PLC0415
             self.Quartz = Quartz
+            check_accessibility()
 
-    def set_key(self, name: str, down: bool) -> None:
-        # "shift+up" = arrow key with the Shift flag set on the event (NX2Apple reads the
-        # right stick as Shift+arrows from each event's modifier flags, not from a Shift key press).
+    def _post(self, name: str, down: bool) -> None:
+        # "shift+up" = arrow key with the Shift flag set on the event (NX2Apple reads the right
+        # stick as Shift+arrows from each event's modifier flags, not from a Shift key press).
         *mods, base = name.lower().split("+")
         code = KEYCODES.get(base)
         flags = 0
@@ -52,9 +67,6 @@ class KeyOutput:
         if code is None or flags < 0:
             print(f"! unknown key name {name!r} in keymap", file=sys.stderr)
             return
-        if down == (name in self.held):
-            return
-        (self.held.add if down else self.held.discard)(name)
         print(f"  key {'DOWN' if down else 'UP  '} {name}")
         if self.dry_run:
             return
@@ -63,9 +75,105 @@ class KeyOutput:
         q.CGEventSetFlags(ev, sum(getattr(q, f) for f in mods_to_flag_names(mods)))
         q.CGEventPost(q.kCGHIDEventTap, ev)
 
-    def release_all(self) -> None:
-        for name in list(self.held):
-            self.set_key(name, False)
+    def apply(self, pads: dict) -> None:
+        want: set[str] = set()
+        for p in pads.values():
+            want.update(self.buttons[b] for b in p.buttons if b in self.buttons)
+        for sid, mapping in self.sticks.items():
+            x, y = max((p.sticks[sid] for p in pads.values()), key=lambda v: v[0] ** 2 + v[1] ** 2, default=(0, 0))
+            if y > self.deadzone: want.add(mapping["up"])
+            if y < -self.deadzone: want.add(mapping["down"])
+            if x < -self.deadzone: want.add(mapping["left"])
+            if x > self.deadzone: want.add(mapping["right"])
+        for k in self.held - want:
+            self._post(k, False)
+        for k in want - self.held:
+            self._post(k, True)
+        self.held = want
+
+    def close(self) -> None:
+        self.apply({})
+
+
+# ---------------------------------------------------------------- hid output
+class HidOutput:
+    """One virtual gamepad per player slot through the vpad helper."""
+
+    def __init__(self, proc: subprocess.Popen):
+        self.proc = proc
+        self.slots: set[int] = set()
+        self.last: dict[int, tuple] = {}
+
+    @staticmethod
+    def start(candidates: list[Path], dry_run: bool):
+        """First helper that passes `probe`, else None."""
+        for path in candidates:
+            if not path.exists():
+                continue
+            cmd = [str(path)] + (["--dry-run"] if dry_run else [])
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+            ok = False
+            reply = {}
+            try:
+                proc.stdin.write("probe\n")
+                proc.stdin.flush()
+                t = threading.Thread(target=lambda: reply.setdefault("line", proc.stdout.readline()), daemon=True)
+                t.start()
+                t.join(5)
+                ok = reply.get("line", "").startswith("ok probe")
+            except (BrokenPipeError, OSError):
+                pass
+            if ok:
+                print(f"virtual gamepads: using {path.name}")
+                if dry_run:  # keep the pipe drained in dry-run so the helper's output shows
+                    threading.Thread(target=lambda: [print(l, end="") for l in proc.stdout], daemon=True).start()
+                return HidOutput(proc)
+            try:
+                proc.wait(timeout=1)
+                killed_by_macos = proc.returncode == -9 and not reply.get("line")
+            except subprocess.TimeoutExpired:
+                killed_by_macos = False
+                proc.kill()
+                proc.wait()
+            why = ("macOS killed it: the virtual-HID entitlement is not allowed on this system (see README)"
+                   if killed_by_macos else "macOS refused to create a virtual HID device (needs the entitlement/root, see README)")
+            print(f"  {path.name}: {why}")
+            for pipe in (proc.stdin, proc.stdout):
+                try:
+                    pipe.close()
+                except OSError:
+                    pass
+        return None
+
+    def _send(self, line: str) -> None:
+        try:
+            self.proc.stdin.write(line + "\n")
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            print("! virtual gamepad helper exited", file=sys.stderr)
+
+    def apply(self, pads: dict) -> None:
+        groups = by_slot(pads)
+        for slot in set(groups) - self.slots:
+            self._send(f"join {slot}")
+            print(f"  player {slot} joined")
+        for slot in self.slots - set(groups):
+            self._send(f"leave {slot}")
+            self.last.pop(slot, None)
+            print(f"  player {slot} left")
+        self.slots = set(groups)
+        for slot, members in groups.items():
+            fields = report_fields(members)
+            if self.last.get(slot) != fields:
+                self.last[slot] = fields
+                self._send(f"rep {slot} " + " ".join(map(str, fields)))
+
+    def close(self) -> None:
+        try:
+            self.proc.stdin.close()  # EOF: the helper destroys every device and exits
+            self.proc.wait(timeout=3)
+        except Exception:  # noqa: BLE001
+            self.proc.kill()
 
 
 def check_accessibility() -> None:
@@ -83,23 +191,31 @@ def check_accessibility() -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--server", default="http://localhost:3000")
-    ap.add_argument("--keymap", default=str(Path(__file__).with_name("keymap.json")))
-    ap.add_argument("--dry-run", action="store_true", help="print keys instead of posting them")
+    ap.add_argument("--output", choices=["auto", "hid", "keyboard"], default="auto")
+    ap.add_argument("--keymap", default=str(HERE / "keymap.json"))
+    ap.add_argument("--vpad", help="path to the vpad helper (default: bridge/vpad/vpad-entitled, then vpad)")
+    ap.add_argument("--dry-run", action="store_true", help="print what would be sent instead of acting")
     args = ap.parse_args()
 
-    keymap = json.loads(Path(args.keymap).read_text())
-    deadzone = float(keymap.get("deadzone", 0.35))
-    buttons: dict[str, str] = keymap["buttons"]
-    sticks: dict[str, dict[str, str]] = keymap["sticks"]
+    out = None
+    if args.output in ("auto", "hid"):
+        cands = [Path(args.vpad)] if args.vpad else [HERE / "vpad" / "vpad-entitled", HERE / "vpad" / "vpad"]
+        out = HidOutput.start(cands, args.dry_run)
+        if out is None and args.output == "hid":
+            sys.exit("Virtual gamepads are not available (see README, 'Virtual gamepad mode').")
+        if out is None:
+            print("Falling back to keyboard output (all phones = player 1).")
+    if out is None:
+        out = KeyboardOutput(json.loads(Path(args.keymap).read_text()), args.dry_run)
 
-    out = KeyOutput(args.dry_run)
-    if not args.dry_run:
-        check_accessibility()
-
+    pads: dict[str, PadState] = {}
+    lock = threading.Lock()
     sio = socketio.Client(reconnection=True)
-    stick_state: dict[str, set[str]] = {}
+
+    def refresh() -> None:
+        out.apply(pads)
 
     @sio.event
     def connect():
@@ -108,44 +224,42 @@ def main() -> None:
 
     @sio.event
     def disconnect():
-        print("disconnected - releasing keys")
-        out.release_all()
-        stick_state.clear()
+        print("disconnected - releasing everything")
+        with lock:
+            pads.clear()
+            refresh()
+
+    @sio.on("padJoined")
+    def on_joined(d):
+        with lock:
+            pads[d["padId"]] = PadState(int(d["slot"]))
+            refresh()
+
+    @sio.on("padLeft")
+    def on_left(d):
+        with lock:
+            pads.pop(d["padId"], None)
+            refresh()
 
     @sio.on("btn")
-    def on_btn(data):
-        key = buttons.get(data.get("id"))
-        if key:
-            out.set_key(key, bool(data.get("pressed")))
+    def on_btn(d):
+        with lock:
+            p = pads.setdefault(d["padId"], PadState(int(d["slot"])))
+            (p.buttons.add if d.get("pressed") else p.buttons.discard)(d["id"])
+            refresh()
 
     @sio.on("stick")
-    def on_stick(data):
-        mapping = sticks.get(data.get("id"))
-        if not mapping:
-            return
-        x, y = float(data.get("x", 0)), float(data.get("y", 0))
-        want = set()
-        if y > deadzone: want.add("up")
-        if y < -deadzone: want.add("down")
-        if x < -deadzone: want.add("left")
-        if x > deadzone: want.add("right")
-        prev = stick_state.get(data["id"], set())
-        for d in prev - want:
-            out.set_key(mapping[d], False)
-        for d in want - prev:
-            out.set_key(mapping[d], True)
-        stick_state[data["id"]] = want
-
-    @sio.on("releaseAll")
-    def on_release_all():
-        out.release_all()
-        stick_state.clear()
+    def on_stick(d):
+        with lock:
+            p = pads.setdefault(d["padId"], PadState(int(d["slot"])))
+            p.sticks[d["id"]] = (float(d.get("x", 0)), float(d.get("y", 0)))
+            refresh()
 
     def shutdown(*_):
-        out.release_all()
+        out.close()
         sys.exit(0)
 
-    atexit.register(out.release_all)
+    atexit.register(out.close)
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 

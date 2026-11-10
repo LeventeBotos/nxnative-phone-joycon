@@ -35,7 +35,7 @@ npm run dev
 Terminal 2 - Mac bridge:
 
 ```bash
-npm run bridge                 # real key presses
+npm run bridge                 # virtual gamepads if available, else keyboard keys
 npm run bridge -- --dry-run    # just print keys (no permissions needed)
 ```
 
@@ -45,6 +45,22 @@ Scan the QR code with your phone (same Wi-Fi) and rotate to landscape. Pick a la
 - **Accessibility:** System Settings → Privacy & Security → Accessibility → enable your terminal app, then restart it. Without this, key events are silently dropped.
 - **Firewall:** allow incoming connections for Node if macOS asks.
 - iOS tip: Share → *Add to Home Screen* gives a full-screen controller with no browser bars.
+
+## Virtual gamepad mode (4 players)
+
+With this mode every phone is its **own gamepad** to macOS, so NX2Apple gives each one its own player (up to 4) and multiplayer prompts like Mario Kart's "3 players wanted" can be satisfied. Pick **P1-P4** (or Auto) on the phone's first screen; two phones on the same player act as one controller (one Left + one Right Joy-Con).
+
+How it works: `bridge/vpad/vpad.c` creates one `IOHIDUserDevice` per player ("Phone Joy-Con P1".."P4") and NX2Apple's generic HID gamepad reader picks them up. The report layout follows NX2Apple's default HID map (`dm/host/pad_hid.h`), so no button mapping is needed; sticks are analog.
+
+**macOS blocks this by default.** Creating a virtual HID device needs Apple's `com.apple.developer.hid.virtual.device` entitlement, which only Apple-approved developer teams get. Without it the bridge automatically falls back to keyboard mode (everything = player 1). To enable virtual gamepads on your own Mac, one of:
+
+1. **Root** (try first, no security change): build with `npm run build:vpad`, then in a Terminal run `echo probe | sudo bridge/vpad/vpad`. If it prints `ok probe`, run the bridge as root: `sudo .venv/bin/python bridge/bridge.py`.
+2. **Relax AMFI** (reduces your Mac's security, reversible): disable SIP and set the `amfi_get_out_of_my_way=0x1` boot-arg from Recovery, then `npm run build:vpad` signs `vpad-entitled` with the entitlement. Steps differ by macOS version and Apple Silicon needs extra Recovery steps (Reduced Security, `bputil -k`); check Apple's current `csrutil`/`bputil` documentation. To revert: `sudo nvram -d boot-args`, `csrutil enable` in Recovery, and set Full Security again.
+3. **Get the entitlement from Apple** (developer portal -> Identifiers -> Capability Requests -> "HID Virtual Device"); approval is not guaranteed.
+
+Check it: `npm run bridge -- --output hid` must not print a "macOS killed it/refused" line; with phones connected, `ioreg -r -c IOHIDUserDevice | grep "Phone Joy-Con"` lists them, and in NX2Apple *Controllers -> Button Mapping* shows them. `DM_HID_LOG=1` makes NX2Apple log each button number. If NX2Apple cannot open the device, give it Input Monitoring permission.
+
+Dry run (no security changes needed): `npm run bridge -- --output hid --dry-run` prints the reports. Tests: `npm run test:bridge`.
 
 ## Key mapping
 

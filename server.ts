@@ -3,9 +3,10 @@ import os from "node:os";
 import next from "next";
 import { Server } from "socket.io";
 import qrcode from "qrcode-terminal";
-import type {
-  ClientToServerEvents,
-  ServerToClientEvents,
+import {
+  MAX_SLOTS,
+  type ClientToServerEvents,
+  type ServerToClientEvents,
 } from "./lib/protocol";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -34,34 +35,52 @@ app.prepare().then(() => {
     cors: { origin: true },
   });
 
-  const pads = new Set<string>();
+  const pads = new Map<string, number>(); // socket id -> player slot (1-4)
   const bridges = new Set<string>();
+
+  const slotCounts = () => {
+    const c = Array<number>(MAX_SLOTS).fill(0);
+    for (const slot of pads.values()) c[slot - 1]++;
+    return c;
+  };
+  const lowestFreeSlot = () => {
+    const c = slotCounts();
+    const free = c.indexOf(0);
+    return (free >= 0 ? free : c.indexOf(Math.min(...c))) + 1;
+  };
   const broadcastStatus = () =>
-    io.emit("status", { pads: pads.size, bridges: bridges.size });
+    io.emit("status", { pads: pads.size, bridges: bridges.size, slots: slotCounts() });
 
   io.on("connection", (socket) => {
-    socket.on("hello", ({ role }) => {
+    socket.on("hello", ({ role, slot }) => {
       if (role === "bridge") {
         bridges.add(socket.id);
         socket.join("bridge");
+        // A bridge that starts late learns about the phones already connected.
+        for (const [padId, s] of pads) socket.emit("padJoined", { padId, slot: s });
       } else {
-        pads.add(socket.id);
+        const wanted = Number.isInteger(slot) && slot! >= 1 && slot! <= MAX_SLOTS ? slot! : lowestFreeSlot();
+        if (pads.has(socket.id)) io.to("bridge").emit("padLeft", { padId: socket.id }); // changing slot
+        pads.set(socket.id, wanted);
+        socket.emit("assigned", { slot: wanted });
+        io.to("bridge").emit("padJoined", { padId: socket.id, slot: wanted });
       }
       broadcastStatus();
     });
 
     socket.on("btn", (e) => {
-      if (pads.has(socket.id)) io.to("bridge").emit("btn", e);
+      const slot = pads.get(socket.id);
+      if (slot) io.to("bridge").emit("btn", { ...e, slot, padId: socket.id });
     });
     socket.on("stick", (e) => {
-      if (pads.has(socket.id)) io.to("bridge").emit("stick", e);
+      const slot = pads.get(socket.id);
+      if (slot) io.to("bridge").emit("stick", { ...e, slot, padId: socket.id });
     });
 
     socket.on("disconnect", () => {
-      const wasPad = pads.delete(socket.id);
+      // Only this phone's input is released; other phones keep theirs.
+      if (pads.delete(socket.id)) io.to("bridge").emit("padLeft", { padId: socket.id });
       bridges.delete(socket.id);
-      // Avoid stuck keys if a controller vanishes mid-press.
-      if (wasPad) io.to("bridge").emit("releaseAll");
       broadcastStatus();
     });
   });

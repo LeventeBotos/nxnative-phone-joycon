@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { enterLandscapeFullscreen } from "@/lib/fullscreen";
+import { joinSlot } from "@/lib/socket";
 import { randomJoyConColor, type JoyConColor } from "@/lib/joyconColors";
 import JoyConController from "./JoyConController";
 import LayoutSelect, { type Layout } from "./LayoutSelect";
@@ -11,7 +12,8 @@ export default function ControllerApp() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [color, setColor] = useState<JoyConColor | null>(null);
 
-  const pick = (l: Layout) => {
+  const pick = (l: Layout, slot?: number) => {
+    joinSlot(slot);
     // The tap is a user gesture, so fullscreen/orientation lock is allowed here.
     void enterLandscapeFullscreen();
     // Pick the colour on the client at selection time (not during SSR) to avoid hydration mismatch.

@@ -38,7 +38,7 @@ function FaceButtons() {
 
 /** A single Joy-Con held sideways, filling the whole phone screen. */
 export default function JoyConController({ side, color, onShuffle, onBack }: Props) {
-  const { dot, label } = useBridgeStatus();
+  const { dot, label, slot } = useBridgeStatus();
   const left = side === "left";
 
   const style = {
@@ -93,7 +93,7 @@ export default function JoyConController({ side, color, onShuffle, onBack }: Pro
             <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
             {label}
           </span>
-          <span className="text-zinc-500">{color.name}</span>
+          <span className="text-zinc-500">{slot ? `Player ${slot} · ` : ""}{color.name}</span>
           <button type="button" onClick={onShuffle} className="rounded-full border border-zinc-600 px-3 py-1 text-zinc-200">
             New colour
           </button>

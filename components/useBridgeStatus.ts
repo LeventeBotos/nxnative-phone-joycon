@@ -6,7 +6,8 @@ import { getSocket } from "@/lib/socket";
 
 export function useBridgeStatus() {
   const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState<StatusEvent>({ pads: 0, bridges: 0 });
+  const [status, setStatus] = useState<StatusEvent>({ pads: 0, bridges: 0, slots: [] });
+  const [slot, setSlot] = useState<number | null>(null);
 
   useEffect(() => {
     const s = getSocket();
@@ -15,6 +16,8 @@ export function useBridgeStatus() {
     s.on("connect", onConnect);
     s.on("disconnect", onDisconnect);
     s.on("status", setStatus);
+    const onAssigned = ({ slot }: { slot: number }) => setSlot(slot);
+    s.on("assigned", onAssigned);
     // Sync once in case the socket connected before this effect subscribed.
     const t = setTimeout(() => setConnected(s.connected), 0);
     return () => {
@@ -22,10 +25,11 @@ export function useBridgeStatus() {
       s.off("connect", onConnect);
       s.off("disconnect", onDisconnect);
       s.off("status", setStatus);
+      s.off("assigned", onAssigned);
     };
   }, []);
 
   const dot = !connected ? "bg-red-500" : status.bridges > 0 ? "bg-green-500" : "bg-amber-400";
   const label = !connected ? "Server offline" : status.bridges > 0 ? "Bridge connected" : "Waiting for Mac bridge";
-  return { dot, label };
+  return { dot, label, slot };
 }

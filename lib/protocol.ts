@@ -23,20 +23,30 @@ export interface StickEvent {
   y: number;
 }
 
+export const MAX_SLOTS = 4;
+
 export interface StatusEvent {
   pads: number;
   bridges: number;
+  /** phones per player slot, index 0 = player 1 */
+  slots: number[];
 }
 
+/** Events the bridge receives carry the phone that sent them and its player slot (1-4). */
+export type Tagged<T> = T & { slot: number; padId: string };
+
 export interface ClientToServerEvents {
-  hello: (payload: { role: Role }) => void;
+  /** slot: requested player (1-4); omitted = lowest free slot */
+  hello: (payload: { role: Role; slot?: number }) => void;
   btn: (payload: ButtonEvent) => void;
   stick: (payload: StickEvent) => void;
 }
 
 export interface ServerToClientEvents {
   status: (payload: StatusEvent) => void;
-  btn: (payload: ButtonEvent) => void;
-  stick: (payload: StickEvent) => void;
-  releaseAll: () => void;
+  assigned: (payload: { slot: number }) => void;
+  btn: (payload: Tagged<ButtonEvent>) => void;
+  stick: (payload: Tagged<StickEvent>) => void;
+  padJoined: (payload: { padId: string; slot: number }) => void;
+  padLeft: (payload: { padId: string }) => void;
 }

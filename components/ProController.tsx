@@ -12,7 +12,7 @@ const click = "h-7 w-12 rounded-full bg-zinc-800 text-zinc-300 text-xs";
 const face = "h-12 w-12 rounded-full bg-zinc-200 text-zinc-900 text-lg";
 
 export default function ProController({ onBack }: { onBack: () => void }) {
-  const { dot, label } = useBridgeStatus();
+  const { dot, label, slot } = useBridgeStatus();
 
   return (
     <main className="safe-pad relative flex h-full w-full flex-col justify-between gap-1 bg-[#0b0b10]">
@@ -25,7 +25,7 @@ export default function ProController({ onBack }: { onBack: () => void }) {
           <TouchButton id="MINUS" className={small}>−</TouchButton>
           <button type="button" onClick={onBack} className="flex items-center gap-2">
             <span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} />
-            {label} · change layout
+            {slot ? `P${slot} · ` : ""}{label} · change layout
           </button>
           <TouchButton id="PLUS" className={small}>+</TouchButton>
         </div>
