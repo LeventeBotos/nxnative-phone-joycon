@@ -48,7 +48,19 @@ Scan the QR code with your phone (same Wi-Fi) and rotate to landscape. Pick a la
 
 ## Key mapping
 
-Edit `bridge/keymap.json` (buttons, left/right stick directions, deadzone). Sticks are digital (8-way) past the deadzone. Valid key names: `a-z`, `0-9`, arrows, `return`, `space`, `tab`, `escape`, `shift`, `control`, `option`, `command`, `delete`.
+`bridge/keymap.json` ships matching **NX2Apple's default keyboard map** (from its `input_map.h`), so it works with no configuration in the game:
+
+| Phone | Key | Phone | Key |
+|---|---|---|---|
+| A / B / X / Y | J / K / U / I | L / R | Q / E |
+| ZL / ZR | Z / C | Plus / Minus | Return / Tab |
+| D-pad | arrow keys | L3 / R3 (stick click) | F / G |
+| Left stick | W A S D | Right stick | Shift + arrow keys |
+
+Notes:
+- The game must be running in its window (`DM_WINDOW=1` / the launcher's window) and **focused**, or the keys go elsewhere.
+- NX2Apple reads the right stick as Shift+arrows, so pressing a D-pad direction *while* the right stick is pushed in the same direction collides (same key). Rarely matters; to avoid it, move the right stick keys in NX2Apple with `DM_KEYMAP` (e.g. `RUp=<keycode>`) and mirror that in `keymap.json`.
+- Sticks are digital (8-way) past the deadzone. Key names: `a-z`, `0-9`, arrows, `return`, `space`, `tab`, `escape`, `delete`, with modifier prefixes like `shift+up`.
 
 ## Troubleshooting
 - Phone can't connect: check same Wi-Fi network, client isolation off, firewall prompt accepted.

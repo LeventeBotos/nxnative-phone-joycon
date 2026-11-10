@@ -1,24 +1,26 @@
 {
-  "_comment": "Edit key names to match NX2Apple's keyboard bindings. Valid names: a-z, 0-9, up/down/left/right, return, space, tab, escape, shift, control, option, command, delete.",
+  "_comment": "Matches NX2Apple's default keyboard map (dm/host/input_map.h). Key names: a-z, 0-9, up/down/left/right, return, space, tab, escape, delete; prefix modifiers like shift+up. NX2Apple reads the right stick as Shift+arrow keys.",
   "deadzone": 0.35,
   "buttons": {
-    "A": "l",
+    "A": "j",
     "B": "k",
-    "X": "i",
-    "Y": "j",
+    "X": "u",
+    "Y": "i",
     "L": "q",
     "R": "e",
-    "ZL": "u",
-    "ZR": "o",
+    "ZL": "z",
+    "ZR": "c",
     "MINUS": "tab",
     "PLUS": "return",
-    "UP": "t",
-    "DOWN": "g",
-    "LEFT": "f",
-    "RIGHT": "h"
+    "LS": "f",
+    "RS": "g",
+    "UP": "up",
+    "DOWN": "down",
+    "LEFT": "left",
+    "RIGHT": "right"
   },
   "sticks": {
     "L": { "up": "w", "down": "s", "left": "a", "right": "d" },
-    "R": { "up": "up", "down": "down", "left": "left", "right": "right" }
+    "R": { "up": "shift+up", "down": "shift+down", "left": "shift+left", "right": "shift+right" }
   }
 }

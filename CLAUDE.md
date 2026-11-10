@@ -20,3 +20,6 @@ Phone browser = virtual Switch controller for native Mac games. Phone → Socket
 - No custom touch tracking for sticks; use nipplejs. Buttons use touchstart/touchend, never click.
 - Always release held keys on disconnect/exit (avoid stuck keys).
 - nipplejs handlers receive one event arg: use `evt.data`.
+
+## NX2Apple keymap
+`bridge/keymap.json` mirrors NX2Apple defaults (`~/Library/Application Support/NX2Apple/engine/*/dm/host/input_map.h`). Right stick = `shift+<arrow>`: the bridge sets the Shift flag on the arrow event (NX2Apple reads `NSEvent.modifierFlags`). If a user sets `DM_KEYMAP` in NX2Apple, mirror it in keymap.json.

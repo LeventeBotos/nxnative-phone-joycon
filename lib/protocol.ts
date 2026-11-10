@@ -3,6 +3,7 @@ export const BUTTON_IDS = [
   "L", "R", "ZL", "ZR",
   "MINUS", "PLUS",
   "UP", "DOWN", "LEFT", "RIGHT",
+  "LS", "RS",
 ] as const;
 
 export type ButtonId = (typeof BUTTON_IDS)[number];

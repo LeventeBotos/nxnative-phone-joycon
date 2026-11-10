@@ -8,6 +8,7 @@ import { useBridgeStatus } from "./useBridgeStatus";
 
 const shoulder = "h-10 w-20 bg-zinc-700 text-zinc-200 rounded-lg text-sm";
 const small = "h-8 w-12 bg-zinc-700 text-zinc-300 rounded-full text-xl";
+const click = "h-7 w-12 rounded-full bg-zinc-800 text-zinc-300 text-xs";
 const face = "h-12 w-12 rounded-full bg-zinc-200 text-zinc-900 text-lg";
 
 export default function ProController({ onBack }: { onBack: () => void }) {
@@ -37,14 +38,20 @@ export default function ProController({ onBack }: { onBack: () => void }) {
       {/* Pro Controller: left stick high, d-pad low; face buttons high, right stick low. */}
       <div className="flex flex-1 items-stretch justify-between px-4">
         <div className="flex gap-6">
-          <div className="self-start"><Joystick id="L" size={96} /></div>
+          <div className="flex flex-col items-center self-start">
+            <Joystick id="L" size={96} />
+            <TouchButton id="LS" className={click}>L3</TouchButton>
+          </div>
           <div className="self-end pb-1"><DPad /></div>
         </div>
         <div className="flex gap-6">
           <div className="self-start">
             <FaceCluster />
           </div>
-          <div className="self-end"><Joystick id="R" size={96} /></div>
+          <div className="flex flex-col items-center self-end">
+            <TouchButton id="RS" className={click}>R3</TouchButton>
+            <Joystick id="R" size={96} />
+          </div>
         </div>
       </div>
 

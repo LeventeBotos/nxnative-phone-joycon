@@ -68,7 +68,14 @@ export default function JoyConController({ side, color, onShuffle, onBack }: Pro
     <TouchButton id="PLUS" className={mini}>+</TouchButton>
   );
 
-  const stick = <Joystick id={left ? "L" : "R"} size={110} color="#18181b" />;
+  const stick = (
+    <div className="flex flex-col items-center">
+      <Joystick id={left ? "L" : "R"} size={110} color="#18181b" />
+      <TouchButton id={left ? "LS" : "RS"} className="h-7 w-14 rounded-full bg-zinc-900 text-zinc-100 text-xs">
+        {left ? "L3" : "R3"}
+      </TouchButton>
+    </div>
+  );
   const buttons = left ? <DPad tone={`${key} h-14 w-14`} /> : <FaceButtons />;
 
   return (

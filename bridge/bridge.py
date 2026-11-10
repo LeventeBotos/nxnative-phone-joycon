@@ -24,6 +24,15 @@ KEYCODES = {
 }
 
 
+MODIFIER_FLAGS = {"shift": 1, "control": 2, "option": 4, "command": 8}
+_FLAG_NAMES = {"shift": "kCGEventFlagMaskShift", "control": "kCGEventFlagMaskControl",
+               "option": "kCGEventFlagMaskAlternate", "command": "kCGEventFlagMaskCommand"}
+
+
+def mods_to_flag_names(mods):
+    return [_FLAG_NAMES[m] for m in mods]
+
+
 class KeyOutput:
     def __init__(self, dry_run: bool):
         self.dry_run = dry_run
@@ -33,8 +42,14 @@ class KeyOutput:
             self.Quartz = Quartz
 
     def set_key(self, name: str, down: bool) -> None:
-        code = KEYCODES.get(name)
-        if code is None:
+        # "shift+up" = arrow key with the Shift flag set on the event (NX2Apple reads the
+        # right stick as Shift+arrows from each event's modifier flags, not from a Shift key press).
+        *mods, base = name.lower().split("+")
+        code = KEYCODES.get(base)
+        flags = 0
+        for m in mods:
+            flags |= MODIFIER_FLAGS.get(m, -1)
+        if code is None or flags < 0:
             print(f"! unknown key name {name!r} in keymap", file=sys.stderr)
             return
         if down == (name in self.held):
@@ -45,6 +60,7 @@ class KeyOutput:
             return
         q = self.Quartz
         ev = q.CGEventCreateKeyboardEvent(None, code, down)
+        q.CGEventSetFlags(ev, sum(getattr(q, f) for f in mods_to_flag_names(mods)))
         q.CGEventPost(q.kCGHIDEventTap, ev)
 
     def release_all(self) -> None:
