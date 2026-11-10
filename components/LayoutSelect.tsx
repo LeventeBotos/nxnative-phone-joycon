@@ -1,0 +1,43 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+export type Layout = "pro" | "joycon";
+
+function Card({ title, sub, onPick, children }: { title: string; sub: string; onPick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="flex w-60 flex-col items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-5 active:scale-95 active:border-zinc-400"
+    >
+      <div className="flex h-20 items-center justify-center">{children}</div>
+      <div className="text-lg font-semibold text-zinc-100">{title}</div>
+      <div className="text-xs text-zinc-400">{sub}</div>
+    </button>
+  );
+}
+
+export default function LayoutSelect({ onPick }: { onPick: (l: Layout) => void }) {
+  return (
+    <main className="safe-pad relative flex h-full w-full flex-col items-center justify-center gap-5 bg-[#0b0b10]">
+      <h1 className="text-xl font-semibold text-zinc-100">Choose your controller</h1>
+      <div className="flex gap-6">
+        <Card title="Pro Controller" sub="Classic one-piece layout" onPick={() => onPick("pro")}>
+          <div className="relative h-16 w-36 rounded-[2rem] bg-zinc-700">
+            <span className="absolute left-4 top-3 h-5 w-5 rounded-full bg-zinc-900" />
+            <span className="absolute bottom-3 left-12 h-4 w-4 rounded bg-zinc-900" />
+            <span className="absolute right-12 top-3 h-4 w-4 rounded-full bg-zinc-200" />
+            <span className="absolute bottom-3 right-4 h-5 w-5 rounded-full bg-zinc-900" />
+          </div>
+        </Card>
+        <Card title="Joy-Con" sub="Handheld pair, random colour" onPick={() => onPick("joycon")}>
+          <div className="flex gap-1.5">
+            <div className="h-16 w-12 rounded-l-3xl rounded-r-md bg-[#0ab9e6]" />
+            <div className="h-16 w-12 rounded-l-md rounded-r-3xl bg-[#ff3c28]" />
+          </div>
+        </Card>
+      </div>
+    </main>
+  );
+}

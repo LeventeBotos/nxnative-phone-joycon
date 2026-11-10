@@ -6,7 +6,15 @@ import { sendStick } from "@/lib/socket";
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-export default function Joystick({ id, size = 130 }: { id: StickId; size?: number }) {
+export default function Joystick({
+  id,
+  size = 130,
+  color = "#a1a1aa",
+}: {
+  id: StickId;
+  size?: number;
+  color?: string;
+}) {
   const zoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,7 +43,7 @@ export default function Joystick({ id, size = 130 }: { id: StickId; size?: numbe
         zone,
         mode: "static",
         position: { left: "50%", top: "50%" },
-        color: "#a1a1aa",
+        color,
         size,
         restOpacity: 0.7,
         fadeTime: 0,
@@ -52,7 +60,7 @@ export default function Joystick({ id, size = 130 }: { id: StickId; size?: numbe
       manager?.destroy();
       sendStick({ id, x: 0, y: 0 });
     };
-  }, [id, size]);
+  }, [id, size, color]);
 
   return <div ref={zoneRef} className="relative touch-none" style={{ width: size + 30, height: size + 30 }} />;
 }

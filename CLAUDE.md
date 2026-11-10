@@ -13,7 +13,7 @@ Phone browser = virtual Switch controller for native Mac games. Phone → Socket
 - `server.ts` - custom server (see node_modules/next/dist/docs/01-app/02-guides/custom-server.md); rooms: bridge clients join `bridge`; pad disconnect emits `releaseAll`
 - `lib/protocol.ts` - shared event types (`btn {id,pressed}`, `stick {id,x,y}`, `status`, `releaseAll`, `hello {role}`)
 - `lib/socket.ts` - client singleton; input uses `volatile.emit`
-- `components/` - `Controller` (layout), `Joystick` (nipplejs, dynamic import), `TouchButton` (native non-passive touch listeners), `DPad`
+- `components/` - `ControllerApp` (layout picker state), `LayoutSelect`, `ProController`, `JoyConController` (random colour from `lib/joyconColors.ts`, chosen client-side on pick to avoid hydration mismatch), `useBridgeStatus`, `Joystick` (nipplejs, dynamic import), `TouchButton` (native non-passive touch listeners), `DPad`
 - `bridge/keymap.json` - button/stick → key names; `bridge/bridge.py` holds the key-name → keycode table
 
 ## Conventions

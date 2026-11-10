@@ -2,9 +2,10 @@
 
 import TouchButton from "./TouchButton";
 
-const base = "h-12 w-12 bg-zinc-700 text-zinc-200 text-xl rounded-md";
+const DEFAULT = "bg-zinc-700 text-zinc-200";
 
-export default function DPad() {
+export default function DPad({ tone = DEFAULT }: { tone?: string }) {
+  const base = `h-11 w-11 text-xl rounded-md ${tone}`;
   return (
     <div className="grid grid-cols-3 grid-rows-3 gap-1">
       <span />
