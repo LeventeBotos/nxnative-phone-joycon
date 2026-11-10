@@ -101,7 +101,7 @@ class KeyboardOutput:
 
 # ---------------------------------------------------------------- netpad output
 class NetPadOutput:
-    """One player per slot, sent as UDP datagrams to the patched NX2Apple host (nxpatch/netpad_mac.m)."""
+    """One pad per phone group (the slot picked on the phone is the pad number), sent as UDP datagrams to a host with network pads on (DM_NETPAD): the host gives each pad a player of its own."""
 
     def __init__(self, port: int, dry_run: bool):
         self.addr = ("127.0.0.1", port)
@@ -112,7 +112,7 @@ class NetPadOutput:
         self.stop = threading.Event()
         # the host releases a player that is silent for 2 s, so a crashed bridge cannot leave a button held
         threading.Thread(target=self._keepalive, daemon=True).start()
-        print(f"network pads: sending to the patched NX2Apple host on 127.0.0.1:{port}")
+        print(f"network pads: sending to 127.0.0.1:{port} (the game must run with DM_NETPAD={port})")
 
     def _send(self, msg: str) -> None:
         if self.dry_run:
@@ -129,13 +129,13 @@ class NetPadOutput:
             for slot, members in groups.items():
                 f = switch_fields(members)
                 if slot not in self.fields:
-                    print(f"  player {slot} joined")
+                    print(f"  pad {slot} joined")
                 if self.fields.get(slot) != f:
                     self.fields[slot] = f
                     self._send(f"P {slot} " + " ".join(map(str, f)))
             for slot in set(self.fields) - set(groups):
                 del self.fields[slot]
-                print(f"  player {slot} left")
+                print(f"  pad {slot} left")
                 self._send(f"L {slot}")
                 self._send(f"L {slot}")  # twice: UDP may drop one
 
