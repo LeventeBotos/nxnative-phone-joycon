@@ -1,0 +1,24 @@
+{
+  "_comment": "Edit key names to match NX2Apple's keyboard bindings. Valid names: a-z, 0-9, up/down/left/right, return, space, tab, escape, shift, control, option, command, delete.",
+  "deadzone": 0.35,
+  "buttons": {
+    "A": "l",
+    "B": "k",
+    "X": "i",
+    "Y": "j",
+    "L": "q",
+    "R": "e",
+    "ZL": "u",
+    "ZR": "o",
+    "MINUS": "tab",
+    "PLUS": "return",
+    "UP": "t",
+    "DOWN": "g",
+    "LEFT": "f",
+    "RIGHT": "h"
+  },
+  "sticks": {
+    "L": { "up": "w", "down": "s", "left": "a", "right": "d" },
+    "R": { "up": "up", "down": "down", "left": "left", "right": "right" }
+  }
+}

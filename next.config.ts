@@ -5,8 +5,11 @@ const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: true,
   },
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
+  // Let phones on the local network load dev assets / HMR.
+  allowedDevOrigins: ["*.local", "192.168.*.*", "10.*.*.*", "172.*.*.*"],
   turbopack: {
     rules: {
       "*.css": {
