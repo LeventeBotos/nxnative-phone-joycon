@@ -3,10 +3,13 @@
 import type { CSSProperties } from "react";
 import { inkFor, type JoyConColor } from "@/lib/joyconColors";
 import DPad from "./DPad";
+import FaceButtons from "./FaceButtons";
 import Joystick from "./Joystick";
 import RotateOverlay from "./RotateOverlay";
+import StatusMenu from "./StatusMenu";
 import TouchButton from "./TouchButton";
 import { useBridgeStatus } from "./useBridgeStatus";
+import { useUnit } from "./useUnit";
 
 interface Props {
   side: "left" | "right";
@@ -16,29 +19,16 @@ interface Props {
 }
 
 const key = "bg-zinc-900 text-zinc-100 shadow-[0_2px_0_rgba(0,0,0,0.45)]";
-const tab = "h-11 bg-zinc-900/90 text-zinc-100 text-sm rounded-b-md rounded-t-2xl shadow-[0_2px_0_rgba(0,0,0,0.45)]";
-const mini = "h-8 w-8 rounded-full bg-zinc-900 text-zinc-100 text-lg shadow-[0_2px_0_rgba(0,0,0,0.45)]";
-const faceKey = `h-14 w-14 rounded-full text-lg ${key}`;
+const tab = "bg-zinc-900/90 text-zinc-100 text-sm rounded-b-md rounded-t-2xl shadow-[0_2px_0_rgba(0,0,0,0.45)]";
+const mini = "rounded-full bg-zinc-900 text-zinc-100 text-lg shadow-[0_2px_0_rgba(0,0,0,0.45)]";
 
-function FaceButtons() {
-  return (
-    <div className="grid grid-cols-3 grid-rows-3 gap-1">
-      <span />
-      <TouchButton id="X" className={faceKey}>X</TouchButton>
-      <span />
-      <TouchButton id="Y" className={faceKey}>Y</TouchButton>
-      <span />
-      <TouchButton id="A" className={faceKey}>A</TouchButton>
-      <span />
-      <TouchButton id="B" className={faceKey}>B</TouchButton>
-      <span />
-    </div>
-  );
-}
-
-/** A single Joy-Con held sideways, filling the whole phone screen. */
+/**
+ * A single Joy-Con held sideways, filling the phone. Thumbs rest on the bottom
+ * corners (stick + buttons), index fingers on the top corners (shoulders).
+ */
 export default function JoyConController({ side, color, onShuffle, onBack }: Props) {
   const { dot, label, slot } = useBridgeStatus();
+  const u = useUnit(0.17, 38, 62);
   const left = side === "left";
 
   const style = {
@@ -46,63 +36,60 @@ export default function JoyConController({ side, color, onShuffle, onBack }: Pro
     color: inkFor(color.hex),
     "--rail": `color-mix(in srgb, ${color.hex} 80%, black)`,
     "--shine": `color-mix(in srgb, ${color.hex} 65%, white)`,
-    // Highlight on the outer edge, darker rail where the Joy-Con would slide onto the console.
     backgroundImage: `linear-gradient(${left ? 90 : 270}deg, var(--shine) 0%, transparent 14%)`,
     boxShadow: `inset ${left ? "-" : ""}10px 0 0 var(--rail)`,
   } as CSSProperties;
 
+  const tabH = Math.round(u * 0.8);
   const shoulders = left ? (
-    <div className="flex items-center gap-2">
-      <TouchButton id="ZL" className={`${tab} w-28`}>ZL</TouchButton>
-      <TouchButton id="L" className={`${tab} w-20`}>L</TouchButton>
+    <div className="flex gap-2">
+      <TouchButton id="ZL" style={{ height: tabH, width: u * 2 }} className={tab}>ZL</TouchButton>
+      <TouchButton id="L" style={{ height: tabH, width: u * 1.5 }} className={tab}>L</TouchButton>
     </div>
   ) : (
-    <div className="flex items-center gap-2">
-      <TouchButton id="R" className={`${tab} w-20`}>R</TouchButton>
-      <TouchButton id="ZR" className={`${tab} w-28`}>ZR</TouchButton>
+    <div className="flex gap-2">
+      <TouchButton id="R" style={{ height: tabH, width: u * 1.5 }} className={tab}>R</TouchButton>
+      <TouchButton id="ZR" style={{ height: tabH, width: u * 2 }} className={tab}>ZR</TouchButton>
     </div>
   );
+  const miniSize = { width: Math.round(u * 0.65), height: Math.round(u * 0.65) };
   const system = left ? (
-    <TouchButton id="MINUS" className={mini}>−</TouchButton>
+    <TouchButton id="MINUS" style={miniSize} className={mini}>−</TouchButton>
   ) : (
-    <TouchButton id="PLUS" className={mini}>+</TouchButton>
+    <TouchButton id="PLUS" style={miniSize} className={mini}>+</TouchButton>
   );
 
+  const stickSize = Math.round(u * 2);
   const stick = (
     <div className="flex flex-col items-center">
-      <Joystick id={left ? "L" : "R"} size={110} color="#18181b" />
-      <TouchButton id={left ? "LS" : "RS"} className="h-7 w-14 rounded-full bg-zinc-900 text-zinc-100 text-xs">
+      <TouchButton
+        id={left ? "LS" : "RS"}
+        style={{ height: Math.round(u * 0.5), width: u * 1.1 }}
+        className="rounded-full bg-zinc-900 text-zinc-100 text-xs"
+      >
         {left ? "L3" : "R3"}
       </TouchButton>
+      <Joystick id={left ? "L" : "R"} size={stickSize} color="#18181b" />
     </div>
   );
-  const buttons = left ? <DPad tone={`${key} h-14 w-14`} /> : <FaceButtons />;
+  const buttons = left ? <DPad u={u} tone={key} /> : <FaceButtons u={u} tone={key} />;
+
+  // Keep clear of the rail on the console-facing edge.
+  const rail = left ? "pr-4" : "pl-4";
 
   return (
-    <main style={style} className="safe-pad relative flex h-full w-full flex-col justify-between">
-      <header className={`flex items-center justify-between gap-4 ${left ? "pr-5" : "flex-row-reverse pl-5"}`}>
+    <main style={style} className={`safe-pad relative flex h-full w-full flex-col justify-between ${rail}`}>
+      <header className={`relative flex items-start justify-between ${left ? "" : "flex-row-reverse"}`}>
         {shoulders}
+        <div className="absolute left-1/2 top-0 -translate-x-1/2">
+          <StatusMenu dot={dot} label={label} slot={slot} info={color.name} onBack={onBack} onShuffle={onShuffle} />
+        </div>
         {system}
       </header>
 
-      <div className={`flex flex-1 items-center justify-between gap-3 ${left ? "pr-5" : "flex-row-reverse pl-5"}`}>
+      <div className={`flex items-end justify-between ${left ? "" : "flex-row-reverse"}`}>
         {stick}
-
-        <section className="flex w-32 flex-col items-center gap-2 rounded-2xl bg-black/80 px-2 py-3 text-center text-[11px] leading-tight text-zinc-300">
-          <span className="flex items-center gap-1.5">
-            <span className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
-            {label}
-          </span>
-          <span className="text-zinc-500">{slot ? `Player ${slot} · ` : ""}{color.name}</span>
-          <button type="button" onClick={onShuffle} className="rounded-full border border-zinc-600 px-3 py-1 text-zinc-200">
-            New colour
-          </button>
-          <button type="button" onClick={onBack} className="text-zinc-500 underline">
-            Change layout
-          </button>
-        </section>
-
-        {buttons}
+        <div className="pb-2">{buttons}</div>
       </div>
 
       <RotateOverlay />

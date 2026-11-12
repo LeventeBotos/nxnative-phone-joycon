@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { StickId } from "@/lib/protocol";
 import { sendStick } from "@/lib/socket";
+import { hapticStick } from "@/lib/haptics";
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
@@ -51,7 +52,11 @@ export default function Joystick({
       manager.on("move", (evt) => {
         queue(round(evt.data.vector.x), round(evt.data.vector.y));
       });
-      manager.on("end", () => queue(0, 0));
+      manager.on("start", () => hapticStick());
+      manager.on("end", () => {
+        queue(0, 0);
+        hapticStick();
+      });
     });
 
     return () => {

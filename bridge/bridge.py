@@ -110,6 +110,10 @@ class NetPadOutput:
         self.fields: dict[int, tuple] = {}
         self.lock = threading.Lock()
         self.stop = threading.Event()
+        self.on_rumble = None  # (slot, intensity 0..1, sharpness 0..1) -> None, set by main()
+        # the host sends game rumble back to the address our packets came from: this socket
+        self.sock.settimeout(0.5)
+        threading.Thread(target=self._rumble_loop, daemon=True).start()
         # the host releases a player that is silent for 2 s, so a crashed bridge cannot leave a button held
         threading.Thread(target=self._keepalive, daemon=True).start()
         print(f"network pads: sending to 127.0.0.1:{port} (the game must run with DM_NETPAD={port})")
@@ -138,6 +142,26 @@ class NetPadOutput:
                 print(f"  pad {slot} left")
                 self._send(f"L {slot}")
                 self._send(f"L {slot}")  # twice: UDP may drop one
+
+    def _rumble_loop(self) -> None:
+        """Host -> bridge: `V <player> <intensity 0-255> <sharpness 0-255>`."""
+        while not self.stop.is_set():
+            try:
+                data, _ = self.sock.recvfrom(256)
+            except socket.timeout:
+                continue
+            except OSError:
+                if self.stop.is_set():
+                    return
+                time.sleep(0.1)  # e.g. ICMP "connection refused" while no host listens: keep going
+                continue
+            try:
+                tag, slot, inten, sharp = data.decode().split()
+                if tag != "V" or self.on_rumble is None:
+                    continue
+                self.on_rumble(int(slot), int(inten) / 255, int(sharp) / 255)
+            except (ValueError, UnicodeDecodeError):
+                continue
 
     def _keepalive(self) -> None:
         while not self.stop.wait(1.0):
@@ -275,6 +299,16 @@ def main() -> None:
     pads: dict[str, PadState] = {}
     lock = threading.Lock()
     sio = socketio.Client(reconnection=True)
+
+    def send_rumble(slot: int, intensity: float, sharpness: float) -> None:
+        if sio.connected:
+            try:
+                sio.emit("rumble", {"slot": slot, "intensity": intensity, "sharpness": sharpness})
+            except Exception:
+                pass  # server went away mid-emit; the next update retries
+
+    if isinstance(out, NetPadOutput):
+        out.on_rumble = send_rumble
 
     def refresh() -> None:
         out.apply(pads)

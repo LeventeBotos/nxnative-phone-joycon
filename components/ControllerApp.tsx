@@ -6,9 +6,12 @@ import { joinSlot } from "@/lib/socket";
 import { randomJoyConColor, type JoyConColor } from "@/lib/joyconColors";
 import JoyConController from "./JoyConController";
 import LayoutSelect, { type Layout } from "./LayoutSelect";
+import MarioKartController from "./MarioKartController";
 import ProController from "./ProController";
+import { useRumble } from "./useRumble";
 
 export default function ControllerApp() {
+  useRumble();
   const [layout, setLayout] = useState<Layout | null>(null);
   const [color, setColor] = useState<JoyConColor | null>(null);
 
@@ -17,11 +20,12 @@ export default function ControllerApp() {
     // The tap is a user gesture, so fullscreen/orientation lock is allowed here.
     void enterLandscapeFullscreen();
     // Pick the colour on the client at selection time (not during SSR) to avoid hydration mismatch.
-    if (l !== "pro") setColor(randomJoyConColor());
+    if (l !== "pro" && l !== "mariokart") setColor(randomJoyConColor());
     setLayout(l);
   };
 
   if (layout === "pro") return <ProController onBack={() => setLayout(null)} />;
+  if (layout === "mariokart") return <MarioKartController onBack={() => setLayout(null)} />;
   if (layout && color) {
     return (
       <JoyConController

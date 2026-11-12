@@ -77,6 +77,14 @@ app.prepare().then(() => {
       if (slot) io.to("bridge").emit("stick", { ...e, slot, padId: socket.id });
     });
 
+    // Game rumble from the bridge goes to every phone on that player slot.
+    socket.on("rumble", (e) => {
+      if (!bridges.has(socket.id)) return;
+      const clamp = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
+      const payload = { intensity: clamp(e?.intensity), sharpness: clamp(e?.sharpness) };
+      for (const [padId, s] of pads) if (s === e?.slot) io.to(padId).volatile.emit("rumble", payload);
+    });
+
     socket.on("disconnect", () => {
       // Only this phone's input is released; other phones keep theirs.
       if (pads.delete(socket.id)) io.to("bridge").emit("padLeft", { padId: socket.id });

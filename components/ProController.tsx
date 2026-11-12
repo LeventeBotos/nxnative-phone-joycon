@@ -1,77 +1,67 @@
 "use client";
 
 import DPad from "./DPad";
+import FaceButtons from "./FaceButtons";
 import Joystick from "./Joystick";
 import RotateOverlay from "./RotateOverlay";
+import StatusMenu from "./StatusMenu";
 import TouchButton from "./TouchButton";
 import { useBridgeStatus } from "./useBridgeStatus";
+import { useUnit } from "./useUnit";
 
-const shoulder = "h-10 w-20 bg-zinc-700 text-zinc-200 rounded-lg text-sm";
-const small = "h-8 w-12 bg-zinc-700 text-zinc-300 rounded-full text-xl";
-const click = "h-7 w-12 rounded-full bg-zinc-800 text-zinc-300 text-xs";
-const face = "h-12 w-12 rounded-full bg-zinc-200 text-zinc-900 text-lg";
+const shoulder = "bg-zinc-700 text-zinc-200 rounded-lg text-sm";
+const small = "bg-zinc-700 text-zinc-300 rounded-full text-xl";
+const click = "rounded-full bg-zinc-800 text-zinc-300 text-xs";
+const face = "bg-zinc-200 text-zinc-900";
 
+/**
+ * Pro Controller sized to the viewport. Thumbs live in the bottom corners
+ * (stick outside, D-pad / face buttons inside); shoulders on the top corners.
+ */
 export default function ProController({ onBack }: { onBack: () => void }) {
   const { dot, label, slot } = useBridgeStatus();
+  const u = useUnit(0.14, 34, 52);
+  const stickSize = Math.round(u * 2);
+  const shoulderStyle = { height: Math.round(u * 0.85), width: Math.round(u * 1.5) };
+  const smallStyle = { height: Math.round(u * 0.65), width: Math.round(u * 0.85) };
+  const clickStyle = { height: Math.round(u * 0.5), width: Math.round(u * 1.1) };
 
   return (
-    <main className="safe-pad relative flex h-full w-full flex-col justify-between gap-1 bg-[#0b0b10]">
-      <header className="flex items-center justify-between">
+    <main className="safe-pad relative flex h-full w-full flex-col justify-between bg-[#0b0b10]">
+      <header className="relative flex items-start justify-between">
         <div className="flex gap-2">
-          <TouchButton id="ZL" className={shoulder}>ZL</TouchButton>
-          <TouchButton id="L" className={shoulder}>L</TouchButton>
+          <TouchButton id="ZL" style={shoulderStyle} className={shoulder}>ZL</TouchButton>
+          <TouchButton id="L" style={shoulderStyle} className={shoulder}>L</TouchButton>
         </div>
-        <div className="flex items-center gap-3 text-xs text-zinc-400">
-          <TouchButton id="MINUS" className={small}>−</TouchButton>
-          <button type="button" onClick={onBack} className="flex items-center gap-2">
-            <span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} />
-            {slot ? `P${slot} · ` : ""}{label} · change layout
-          </button>
-          <TouchButton id="PLUS" className={small}>+</TouchButton>
+        <div className="flex items-center gap-2">
+          <TouchButton id="MINUS" style={smallStyle} className={small}>−</TouchButton>
+          <StatusMenu dot={dot} label={label} slot={slot} onBack={onBack} />
+          <TouchButton id="PLUS" style={smallStyle} className={small}>+</TouchButton>
         </div>
         <div className="flex gap-2">
-          <TouchButton id="R" className={shoulder}>R</TouchButton>
-          <TouchButton id="ZR" className={shoulder}>ZR</TouchButton>
+          <TouchButton id="R" style={shoulderStyle} className={shoulder}>R</TouchButton>
+          <TouchButton id="ZR" style={shoulderStyle} className={shoulder}>ZR</TouchButton>
         </div>
       </header>
 
-      {/* Pro Controller: left stick high, d-pad low; face buttons high, right stick low. */}
-      <div className="flex flex-1 items-stretch justify-between px-4">
-        <div className="flex gap-6">
-          <div className="flex flex-col items-center self-start">
-            <Joystick id="L" size={96} />
-            <TouchButton id="LS" className={click}>L3</TouchButton>
+      <div className="flex items-end justify-between px-1">
+        <div className="flex items-end gap-3">
+          <div className="flex flex-col items-center">
+            <TouchButton id="LS" style={clickStyle} className={click}>L3</TouchButton>
+            <Joystick id="L" size={stickSize} />
           </div>
-          <div className="self-end pb-1"><DPad /></div>
+          <div className="pb-2"><DPad u={u} /></div>
         </div>
-        <div className="flex gap-6">
-          <div className="self-start">
-            <FaceCluster />
-          </div>
-          <div className="flex flex-col items-center self-end">
-            <TouchButton id="RS" className={click}>R3</TouchButton>
-            <Joystick id="R" size={96} />
+        <div className="flex items-end gap-3">
+          <div className="pb-2"><FaceButtons u={u} tone={face} /></div>
+          <div className="flex flex-col items-center">
+            <TouchButton id="RS" style={clickStyle} className={click}>R3</TouchButton>
+            <Joystick id="R" size={stickSize} />
           </div>
         </div>
       </div>
 
       <RotateOverlay />
     </main>
-  );
-}
-
-function FaceCluster() {
-  return (
-    <div className="grid grid-cols-3 grid-rows-3 gap-0.5">
-      <span />
-      <TouchButton id="X" className={face}>X</TouchButton>
-      <span />
-      <TouchButton id="Y" className={face}>Y</TouchButton>
-      <span />
-      <TouchButton id="A" className={face}>A</TouchButton>
-      <span />
-      <TouchButton id="B" className={face}>B</TouchButton>
-      <span />
-    </div>
   );
 }

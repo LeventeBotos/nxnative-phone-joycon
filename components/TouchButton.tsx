@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { ButtonId } from "@/lib/protocol";
 import { sendButton } from "@/lib/socket";
+import { hapticPress, hapticRelease } from "@/lib/haptics";
 
 interface Props {
   id: ButtonId;
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
 }
 
 /**
@@ -15,7 +17,7 @@ interface Props {
  * (non-passive) so there is no tap delay and no scroll/zoom interference.
  * Mouse handlers are a desktop-testing fallback.
  */
-export default function TouchButton({ id, children, className = "" }: Props) {
+export default function TouchButton({ id, children, className = "", style }: Props) {
   const ref = useRef<HTMLButtonElement>(null);
   const [down, setDown] = useState(false);
 
@@ -27,11 +29,12 @@ export default function TouchButton({ id, children, className = "" }: Props) {
     const press = () => {
       setDown(true);
       sendButton({ id, pressed: true });
-      navigator.vibrate?.(8);
+      hapticPress();
     };
     const release = () => {
       setDown(false);
       sendButton({ id, pressed: false });
+      hapticRelease();
     };
 
     const onStart = (e: TouchEvent) => {
@@ -70,6 +73,7 @@ export default function TouchButton({ id, children, className = "" }: Props) {
     <button
       ref={ref}
       type="button"
+      style={style}
       aria-label={id}
       className={`flex items-center justify-center font-bold select-none touch-none transition-transform ${
         down ? "scale-90 brightness-150" : ""

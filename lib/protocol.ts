@@ -25,6 +25,12 @@ export interface StickEvent {
 
 export const MAX_SLOTS = 4;
 
+/** Game rumble for one phone. intensity/sharpness are 0..1 (Switch HD rumble reduced to one motor). */
+export interface RumbleEvent {
+  intensity: number;
+  sharpness: number;
+}
+
 export interface StatusEvent {
   pads: number;
   bridges: number;
@@ -40,11 +46,14 @@ export interface ClientToServerEvents {
   hello: (payload: { role: Role; slot?: number }) => void;
   btn: (payload: ButtonEvent) => void;
   stick: (payload: StickEvent) => void;
+  /** bridge -> server: rumble for every phone on a player slot */
+  rumble: (payload: RumbleEvent & { slot: number }) => void;
 }
 
 export interface ServerToClientEvents {
   status: (payload: StatusEvent) => void;
   assigned: (payload: { slot: number }) => void;
+  rumble: (payload: RumbleEvent) => void;
   btn: (payload: Tagged<ButtonEvent>) => void;
   stick: (payload: Tagged<StickEvent>) => void;
   padJoined: (payload: { padId: string; slot: number }) => void;
