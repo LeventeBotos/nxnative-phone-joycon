@@ -10,7 +10,7 @@ import {
 } from "./lib/protocol";
 
 const dev = process.env.NODE_ENV !== "production";
-const port = parseInt(process.env.PORT || "3000", 10);
+const port = parseInt(process.env.PORT || "4747", 10);
 const hostname = "0.0.0.0";
 
 function lanAddresses(): string[] {

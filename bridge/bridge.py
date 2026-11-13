@@ -274,7 +274,7 @@ def check_accessibility() -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--server", default="http://localhost:3000")
+    ap.add_argument("--server", default="http://localhost:4747")
     ap.add_argument("--output", choices=["auto", "netpad", "hid", "keyboard"], default="auto")
     ap.add_argument("--netpad-port", type=int, default=NETPAD_PORT)
     ap.add_argument("--keymap", default=str(HERE / "keymap.json"))

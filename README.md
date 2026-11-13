@@ -6,7 +6,7 @@ Use your iPhone or Android browser as a Switch-style gamepad for native Mac game
 Phone browser (nipplejs sticks + touch buttons)
    │  Socket.IO over local Wi-Fi
    ▼
-server.ts  (Next.js custom server + Socket.IO, listens on 0.0.0.0:3000)
+server.ts  (Next.js custom server + Socket.IO, listens on 0.0.0.0:4747)
    │  relays events to the bridge
    ▼
 bridge/bridge.py  ──► macOS keyboard events (Quartz) ──► your game
@@ -91,7 +91,7 @@ Notes:
 
 ## Troubleshooting
 - Phone can't connect: check same Wi-Fi network, client isolation off, firewall prompt accepted.
-- Status stays amber: the bridge isn't running or can't reach `--server` (default `http://localhost:3000`).
+- Status stays amber: the bridge isn't running or can't reach `--server` (default `http://localhost:4747`).
 - Keys don't register in the game: grant Accessibility; make sure the game window is focused.
 
 ## Link to GitHub

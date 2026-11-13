@@ -5,7 +5,7 @@
 Phone browser = virtual Switch controller for native Mac games. Phone → Socket.IO → `server.ts` (assigns player slots 1-4) → `bridge/bridge.py` → either virtual HID gamepads (`bridge/vpad`, one per slot) or macOS keyboard events (Quartz, all = player 1).
 
 ## Commands
-- `npm run dev` - custom Next server + Socket.IO on 0.0.0.0:3000; prints LAN URL + QR
+- `npm run dev` - custom Next server + Socket.IO on 0.0.0.0:4747; prints LAN URL + QR
 - `npm run bridge [-- --dry-run]` - Python bridge (needs `.venv`: `pip install -r bridge/requirements.txt`)
 - `npx tsc --noEmit`, `npm run lint`, `npm run build`
 
